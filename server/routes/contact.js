@@ -1,10 +1,13 @@
 import express from 'express';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import xss from 'xss';
 import { validate } from 'email-validator';
 import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
+
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Rate limit: max 5 requests per 15 minutes per IP
 const contactLimiter = rateLimit({
@@ -14,25 +17,6 @@ const contactLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-
-// Create transporter for Gmail (lazy initialization)
-let transporter = null;
-const getTransporter = () => {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      connectionTimeout: 10000,
-      socketTimeout: 10000
-    });
-  }
-  return transporter;
-};
 
 // Sanitize input to prevent XSS
 const sanitizeInput = (input) => {
@@ -76,12 +60,11 @@ router.post('/contact', contactLimiter, async (req, res) => {
   }
 
   try {
-    // Send email with reply-to header
-    const transporter = getTransporter();
-    await transporter.sendMail({
-      from: `"Portfolio Contact" <${process.env.EMAIL_USER}>`,
+    // Send email via Resend
+    const response = await resend.emails.send({
+      from: 'onboarding@resend.dev',
       to: process.env.EMAIL_USER,
-      replyTo: sanitizedEmail, // User can reply directly to the submitter
+      replyTo: sanitizedEmail,
       subject: `New Portfolio Message from ${sanitizedName}`,
       html: `
         <h2>New Contact Form Submission</h2>
@@ -93,6 +76,10 @@ router.post('/contact', contactLimiter, async (req, res) => {
         <p><small>Sent via portfolio contact form</small></p>
       `
     });
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
 
     res.status(200).json({
       success: true,
