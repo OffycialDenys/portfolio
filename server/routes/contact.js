@@ -12,13 +12,7 @@ const contactLimiter = rateLimit({
   max: 5,
   message: 'Too many contact form submissions. Please try again later.',
   standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.ip || req.socket.remoteAddress || req.connection.remoteAddress;
-  },
-  skip: (req) => {
-    return false;
-  }
+  legacyHeaders: false
 });
 
 // Create transporter for Gmail (lazy initialization)
@@ -26,22 +20,15 @@ let transporter = null;
 const getTransporter = () => {
   if (!transporter) {
     transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
       },
-      pool: {
-        maxConnections: 1,
-        maxMessages: Infinity,
-        rateDelta: 1000,
-        rateLimit: 5
-      },
       connectionTimeout: 10000,
-      socketTimeout: 10000,
-      greetingTimeout: 10000,
-      logger: true,
-      debug: false
+      socketTimeout: 10000
     });
   }
   return transporter;
