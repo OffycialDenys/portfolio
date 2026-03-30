@@ -8,6 +8,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for Render deployment
+app.set('trust proxy', 1);
+
 // CORS configuration - restrict to your domain in production
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
